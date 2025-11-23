@@ -76,6 +76,7 @@ impl XpbdConstraint<2> for FixedJoint {
         inertias: [&SolverBodyInertia; 2],
         solver_data: &mut FixedJointSolverData,
         dt: Scalar,
+        conf: &OgcSolverConfig,
     ) {
         let [body1, body2] = bodies;
 
@@ -85,9 +86,16 @@ impl XpbdConstraint<2> for FixedJoint {
             .solve([body1, body2], inertias, self.angle_compliance, dt);
 
         // Solve the point-to-point constraint.
-        solver_data
-            .point_constraint
-            .solve([body1, body2], inertias, self.point_compliance, dt);
+        solver_data.point_constraint.solve(
+            [body1, body2],
+            inertias,
+            self.point_compliance,
+            dt,
+            conf,
+            self.max_displacement,
+            self.max_velocity,
+            self.activation_tau,
+        );
     }
 }
 

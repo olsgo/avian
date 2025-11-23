@@ -50,12 +50,17 @@ impl PointConstraintShared {
     }
 
     /// Solves the constraint for the given bodies.
+    #[allow(clippy::too_many_arguments)]
     pub fn solve(
         &mut self,
         bodies: [&mut SolverBody; 2],
         inertias: [&SolverBodyInertia; 2],
         compliance: Scalar,
         dt: Scalar,
+        conf: &OgcSolverConfig,
+        max_displacement: Option<Scalar>,
+        max_velocity: Option<Scalar>,
+        activation_tau: Option<Scalar>,
     ) {
         let [body1, body2] = bodies;
         let [inertia1, inertia2] = inertias;
@@ -97,8 +102,34 @@ impl PointConstraintShared {
         );
 
         // Compute Lagrange multiplier update
-        let delta_lagrange = compute_lagrange_update(0.0, magnitude, &[w1, w2], compliance, dt);
-        let impulse = delta_lagrange * dir;
+        let mut delta_lagrange = compute_lagrange_update(0.0, magnitude, &[w1, w2], compliance, dt);
+
+        // OGC: Two-stage activation
+        let activation_tau = activation_tau.unwrap_or(conf.activation_tau);
+        if activation_tau > 0.0 {
+            let activation_factor = 1.0 - (-dt / activation_tau).exp();
+            delta_lagrange *= activation_factor;
+        }
+
+        let mut impulse = delta_lagrange * dir;
+
+        // OGC: Clamp positional corrections and velocity
+        let max_disp = max_displacement.unwrap_or(conf.max_displacement);
+        let max_vel = max_velocity.unwrap_or(conf.max_velocity);
+        
+        // The limit imposed by max_velocity on displacement per substep
+        let vel_limit = max_vel * dt;
+        let effective_limit = max_disp.min(vel_limit);
+
+        // Find the maximum inverse mass to estimate displacement of the lightest body
+        let max_w = w1.max(w2);
+        if max_w > Scalar::EPSILON {
+             let max_impulse = effective_limit / max_w;
+             if impulse.length_squared() > max_impulse * max_impulse {
+                 impulse = impulse.normalize() * max_impulse;
+             }
+        }
+
         self.total_lagrange += impulse;
 
         // Apply positional correction to align the positions of the bodies

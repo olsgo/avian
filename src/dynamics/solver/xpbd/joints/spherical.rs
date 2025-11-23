@@ -87,6 +87,7 @@ impl XpbdConstraint<2> for SphericalJoint {
         inertias: [&SolverBodyInertia; 2],
         solver_data: &mut SphericalJointSolverData,
         dt: Scalar,
+        conf: &OgcSolverConfig,
     ) {
         let [body1, body2] = bodies;
         let [inertia1, inertia2] = inertias;
@@ -97,6 +98,10 @@ impl XpbdConstraint<2> for SphericalJoint {
             [inertia1, inertia2],
             self.point_compliance,
             dt,
+            conf,
+            self.max_displacement,
+            self.max_velocity,
+            self.activation_tau,
         );
 
         // Apply swing limits

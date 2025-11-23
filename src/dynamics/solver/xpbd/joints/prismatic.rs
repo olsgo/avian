@@ -82,6 +82,7 @@ impl XpbdConstraint<2> for PrismaticJoint {
         inertias: [&SolverBodyInertia; 2],
         solver_data: &mut PrismaticJointSolverData,
         dt: Scalar,
+        conf: &OgcSolverConfig,
     ) {
         let [body1, body2] = bodies;
 
@@ -91,7 +92,7 @@ impl XpbdConstraint<2> for PrismaticJoint {
             .solve([body1, body2], inertias, self.angle_compliance, dt);
 
         // Constrain the relative positions of the bodies, only allowing translation along one free axis.
-        self.constrain_positions(body1, body2, inertias[0], inertias[1], solver_data, dt);
+        self.constrain_positions(body1, body2, inertias[0], inertias[1], solver_data, dt, conf);
     }
 }
 
@@ -99,6 +100,7 @@ impl PrismaticJoint {
     /// Constrains the relative positions of the bodies, only allowing translation along one free axis.
     ///
     /// Returns the force exerted by this constraint.
+    #[allow(clippy::too_many_arguments)]
     fn constrain_positions(
         &self,
         body1: &mut SolverBody,
@@ -107,6 +109,7 @@ impl PrismaticJoint {
         inertia2: &SolverBodyInertia,
         solver_data: &mut PrismaticJointSolverData,
         dt: Scalar,
+        conf: &OgcSolverConfig,
     ) {
         // Compute the effective inverse masses and angular inertias of the bodies.
         let inv_mass1 = inertia1.effective_inv_mass();
@@ -179,9 +182,35 @@ impl PrismaticJoint {
         );
 
         // Compute Lagrange multiplier update
-        let delta_lagrange =
+        let mut delta_lagrange =
             compute_lagrange_update(0.0, magnitude, &[w1, w2], self.align_compliance, dt);
-        let impulse = delta_lagrange * dir;
+
+        // OGC: Two-stage activation
+        let activation_tau = self.activation_tau.unwrap_or(conf.activation_tau);
+        if activation_tau > 0.0 {
+            let activation_factor = 1.0 - (-dt / activation_tau).exp();
+            delta_lagrange *= activation_factor;
+        }
+
+        let mut impulse = delta_lagrange * dir;
+
+        // OGC: Clamp positional corrections and velocity
+        let max_disp = self.max_displacement.unwrap_or(conf.max_displacement);
+        let max_vel = self.max_velocity.unwrap_or(conf.max_velocity);
+
+        // The limit imposed by max_velocity on displacement per substep
+        let vel_limit = max_vel * dt;
+        let effective_limit = max_disp.min(vel_limit);
+
+        // Find the maximum inverse mass to estimate displacement of the lightest body
+        let max_w = w1.max(w2);
+        if max_w > Scalar::EPSILON {
+             let max_impulse = effective_limit / max_w;
+             if impulse.length_squared() > max_impulse * max_impulse {
+                 impulse = impulse.normalize() * max_impulse;
+             }
+        }
+
         solver_data.total_position_lagrange += impulse;
 
         // Apply positional correction to align the positions of the bodies

@@ -95,6 +95,7 @@ impl XpbdConstraint<2> for RevoluteJoint {
         inertias: [&SolverBodyInertia; 2],
         solver_data: &mut RevoluteJointSolverData,
         dt: Scalar,
+        conf: &OgcSolverConfig,
     ) {
         let [body1, body2] = bodies;
         let [inertia1, inertia2] = inertias;
@@ -133,9 +134,16 @@ impl XpbdConstraint<2> for RevoluteJoint {
         );
 
         // Align positions
-        solver_data
-            .point_constraint
-            .solve([body1, body2], inertias, self.point_compliance, dt);
+        solver_data.point_constraint.solve(
+            [body1, body2],
+            inertias,
+            self.point_compliance,
+            dt,
+            conf,
+            self.max_displacement,
+            self.max_velocity,
+            self.activation_tau,
+        );
     }
 }
 

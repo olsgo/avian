@@ -47,6 +47,14 @@ pub struct PrismaticJoint {
     pub angle_compliance: Scalar,
     /// The compliance of the distance limit (inverse of stiffness, m / N).
     pub limit_compliance: Scalar,
+    /// Maximum displacement correction allowed per substep.
+    pub max_displacement: Option<Scalar>,
+    /// Maximum velocity change allowed per substep.
+    pub max_velocity: Option<Scalar>,
+    /// Time constant for two-stage activation. 0.0 disables it.
+    pub activation_tau: Option<Scalar>,
+    /// Whether to use conservative bounds (e.g. prune manifolds without points).
+    pub use_conservative_bounds: Option<bool>,
 }
 
 impl EntityConstraint<2> for PrismaticJoint {
@@ -72,6 +80,10 @@ impl PrismaticJoint {
             align_compliance: 0.0,
             angle_compliance: 0.0,
             limit_compliance: 0.0,
+            max_displacement: None,
+            max_velocity: None,
+            activation_tau: None,
+            use_conservative_bounds: None,
         }
     }
 
@@ -304,6 +316,34 @@ impl PrismaticJoint {
     #[inline]
     pub const fn with_limit_compliance(mut self, compliance: Scalar) -> Self {
         self.limit_compliance = compliance;
+        self
+    }
+
+    /// Sets the maximum displacement correction allowed per substep.
+    #[inline]
+    pub const fn with_max_displacement(mut self, max_displacement: Scalar) -> Self {
+        self.max_displacement = Some(max_displacement);
+        self
+    }
+
+    /// Sets the maximum velocity change allowed per substep.
+    #[inline]
+    pub const fn with_max_velocity(mut self, max_velocity: Scalar) -> Self {
+        self.max_velocity = Some(max_velocity);
+        self
+    }
+
+    /// Sets the time constant for two-stage activation.
+    #[inline]
+    pub const fn with_activation_tau(mut self, activation_tau: Scalar) -> Self {
+        self.activation_tau = Some(activation_tau);
+        self
+    }
+
+    /// Sets whether to use conservative bounds.
+    #[inline]
+    pub const fn with_conservative_bounds(mut self, use_conservative_bounds: bool) -> Self {
+        self.use_conservative_bounds = Some(use_conservative_bounds);
         self
     }
 }

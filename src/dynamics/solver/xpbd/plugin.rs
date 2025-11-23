@@ -13,6 +13,7 @@ use crate::{
     prelude::*,
 };
 use bevy::{ecs::component::Mutable, prelude::*};
+use super::OgcSolverConfig;
 
 /// A plugin for a joint solver using Extended Position-Based Dynamics (XPBD).
 pub struct XpbdSolverPlugin;
@@ -25,6 +26,9 @@ impl Plugin for XpbdSolverPlugin {
         app.register_required_components::<SphericalJoint, SphericalJointSolverData>();
         app.register_required_components::<PrismaticJoint, PrismaticJointSolverData>();
         app.register_required_components::<DistanceJoint, DistanceJointSolverData>();
+
+        app.init_resource::<OgcSolverConfig>();
+        app.register_type::<OgcSolverConfig>();
 
         // Configure scheduling.
         app.configure_sets(
@@ -148,6 +152,7 @@ pub fn solve_xpbd_joint<
     bodies: Query<(&mut SolverBody, &SolverBodyInertia), Without<RigidBodyDisabled>>,
     mut joints: Query<(&mut C, &mut C::SolverData), (Without<RigidBody>, Without<JointDisabled>)>,
     time: Res<Time>,
+    conf: Res<OgcSolverConfig>,
 ) where
     C::SolverData: Component<Mutability = Mutable>,
 {
@@ -184,6 +189,7 @@ pub fn solve_xpbd_joint<
             [inertia1, inertia2],
             &mut solver_data,
             delta_secs,
+            &conf,
         );
     }
 }

@@ -290,8 +290,34 @@ pub use angular_constraint::AngularConstraint;
 pub use positional_constraint::PositionConstraint;
 
 use crate::prelude::*;
+use bevy::prelude::*;
 
 use super::solver_body::{SolverBody, SolverBodyInertia};
+
+/// Configuration for Offset Geometric Contact (OGC) solver parameters.
+#[derive(Resource, Debug, Clone, Copy, Reflect)]
+#[reflect(Resource)]
+pub struct OgcSolverConfig {
+    /// Maximum displacement correction allowed per substep.
+    pub max_displacement: Scalar,
+    /// Maximum velocity change allowed per substep.
+    pub max_velocity: Scalar,
+    /// Time constant for two-stage activation. 0.0 disables it.
+    pub activation_tau: Scalar,
+    /// Whether to use conservative bounds (e.g. prune manifolds without points).
+    pub use_conservative_bounds: bool,
+}
+
+impl Default for OgcSolverConfig {
+    fn default() -> Self {
+        Self {
+            max_displacement: Scalar::MAX,
+            max_velocity: Scalar::MAX,
+            activation_tau: 0.0,
+            use_conservative_bounds: false,
+        }
+    }
+}
 
 /// A trait for additional data required for solving an XPBD constraint.
 pub trait XpbdConstraintSolverData {
@@ -345,6 +371,7 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize> {
         inertias: [&SolverBodyInertia; ENTITY_COUNT],
         solver_data: &mut Self::SolverData,
         dt: Scalar,
+        conf: &OgcSolverConfig,
     );
 }
 

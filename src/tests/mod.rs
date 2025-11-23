@@ -13,6 +13,8 @@ use core::time::Duration;
 
 #[cfg(all(feature = "2d", feature = "enhanced-determinism"))]
 mod determinism_2d;
+#[cfg(all(feature = "xpbd_joints", feature = "2d", feature = "default-collider"))]
+mod ogc_tests;
 
 fn create_app() -> App {
     let mut app = App::new();
